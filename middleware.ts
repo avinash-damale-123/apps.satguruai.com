@@ -1,28 +1,28 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 const publicPaths = ['/', '/login', '/signup', '/verify-otp', '/forgot-password'];
-const authApiPrefix = '/api/auth';
 const adminPrefix = '/admin';
 
 function isPublicPath(pathname: string) {
-  return publicPaths.includes(pathname) || pathname.startsWith(authApiPrefix);
+  return publicPaths.includes(pathname);
 }
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const role = request.cookies.get('satguru_role')?.value;
   const hasSession = Boolean(request.cookies.get('satguru_session')?.value);
+  const hasPortalEntry = searchParams.get('entry') === 'portal';
 
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 
-  if (!hasSession) {
+  if (!hasSession && !hasPortalEntry) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   if (pathname.startsWith(adminPrefix) && !['admin', 'super_admin'].includes(role ?? '')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/dashboard?entry=portal', request.url));
   }
 
   return NextResponse.next();
