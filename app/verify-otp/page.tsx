@@ -27,7 +27,7 @@ export default function Verify() {
       return;
     }
 
-    router.push('/dashboard?auth=1');
+    router.push('/dashboard?entry=portal');
     router.refresh();
   }
 
