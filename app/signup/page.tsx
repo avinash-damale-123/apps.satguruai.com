@@ -24,29 +24,43 @@ export default function Signup() {
       return;
     }
 
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fullName: String(form.get('fullName') ?? '').trim(),
-        email,
-        mobile: String(form.get('mobile') ?? '').trim(),
-        department: String(form.get('department') ?? '').trim(),
-        branch: String(form.get('branch') ?? '').trim(),
-        country: String(form.get('country') ?? '').trim()
-      })
-    });
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000);
 
-    const data = await response.json();
-    setIsSubmitting(false);
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          fullName: String(form.get('fullName') ?? '').trim(),
+          email,
+          mobile: String(form.get('mobile') ?? '').trim(),
+          department: String(form.get('department') ?? '').trim(),
+          branch: String(form.get('branch') ?? '').trim(),
+          country: String(form.get('country') ?? '').trim()
+        })
+      });
 
-    if (!response.ok) {
-      setMessage(data.message ?? 'Unable to send OTP. Please try again.');
-      return;
+      const data = await response.json().catch(() => ({ message: 'Unable to read server response.' }));
+
+      if (!response.ok) {
+        setMessage(data.message ?? 'Unable to send OTP. Please try again.');
+        return;
+      }
+
+      sessionStorage.setItem('satguru_verification_token', data.verificationToken);
+      router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+    } catch (error) {
+      setMessage(
+        error instanceof DOMException && error.name === 'AbortError'
+          ? 'OTP request timed out. Please check email provider settings and try again.'
+          : 'Unable to send OTP. Please try again.'
+      );
+    } finally {
+      window.clearTimeout(timeoutId);
+      setIsSubmitting(false);
     }
-
-    sessionStorage.setItem('satguru_verification_token', data.verificationToken);
-    router.push(`/verify-otp?email=${encodeURIComponent(email)}`);
   }
 
   return (
@@ -66,7 +80,7 @@ export default function Signup() {
           <input className="input" name="country" placeholder="Country" />
         </div>
         {message ? <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-700">{message}</p> : null}
-        <button className="btn-primary" disabled={isSubmitting} type="submit">
+        <button className="btn-primary disabled:cursor-not-allowed disabled:opacity-70" disabled={isSubmitting} type="submit">
           {isSubmitting ? 'Sending OTP...' : 'Generate and send OTP'}
         </button>
       </form>
